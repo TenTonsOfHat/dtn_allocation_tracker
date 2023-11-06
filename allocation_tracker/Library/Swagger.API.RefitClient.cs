@@ -1,6 +1,6 @@
-
 // ReSharper disable InconsistentNaming
 // ReSharper disable IdentifierTypo
+
 using Refit;
 
 namespace Library;
@@ -880,7 +880,7 @@ public partial class Terminal
 
     [System.Text.Json.Serialization.JsonPropertyName("id")]
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
-    public int? Id { get; set; }
+    public string Id { get; set; }
 
     [System.Text.Json.Serialization.JsonPropertyName("mappedName")]
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]

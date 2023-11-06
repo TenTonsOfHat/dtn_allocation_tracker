@@ -36,12 +36,12 @@ public class AllocationTrackerService : IAllocationTrackerService
             TimeSpan.FromHours(12),
             CancellationToken.None
         );
-        
+
         return result.Value;
-        
-        Task<IApiResponse<ApiResult_Terminal>> MakeReq()
+
+        async Task<IApiResponse<ApiResult_Terminal>> MakeReq()
         {
-            return _refitClient.TerminalsInTerminalGroup(
+            var res = await _refitClient.TerminalsInTerminalGroup(
                 request.SellerNumber,
                 request.Id,
                 request.Accept,
@@ -49,6 +49,8 @@ public class AllocationTrackerService : IAllocationTrackerService
                 request.Credentials.Apikey,
                 request.Credentials.Username
             );
+            if (res.Error != null) throw res.Error;
+            return res;
         }
     }
 
@@ -64,12 +66,13 @@ public class AllocationTrackerService : IAllocationTrackerService
 
         return result.Value;
 
-        Task<IApiResponse<ApiResult_Product>> MakeReq()
+        async Task<IApiResponse<ApiResult_Product>> MakeReq()
         {
+            IApiResponse<ApiResult_Product> res;
             switch (request.Type)
             {
                 case ProductGroupingRequestType.Family:
-                    return _refitClient.ProductsInProductFamily(
+                    res = await _refitClient.ProductsInProductFamily(
                         request.SellerNumber,
                         request.Id,
                         request.Accept,
@@ -77,8 +80,9 @@ public class AllocationTrackerService : IAllocationTrackerService
                         request.Credentials.Apikey,
                         request.Credentials.Username
                     );
+                    break;
                 case ProductGroupingRequestType.Group:
-                    return _refitClient.ProductsInProductGroup(
+                    res = await _refitClient.ProductsInProductGroup(
                         request.SellerNumber,
                         request.Id,
                         request.Accept,
@@ -86,15 +90,19 @@ public class AllocationTrackerService : IAllocationTrackerService
                         request.Credentials.Apikey,
                         request.Credentials.Username
                     );
+                    break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+
+            if (res.Error != null) throw res.Error;
+            return res;
         }
     }
 
-    public Task<IApiResponse<ApiResult_AllocationProduct>> AllocationProducts(ProductRequest request)
+    public async Task<IApiResponse<ApiResult_AllocationProduct>> AllocationProducts(ProductRequest request)
     {
-        return _refitClient.AllocationProducts(
+        var res = await _refitClient.AllocationProducts(
             request.SellerNumber,
             request.LocationId,
             request.Accept,
@@ -102,33 +110,42 @@ public class AllocationTrackerService : IAllocationTrackerService
             request.Credentials.Apikey,
             request.Credentials.Username
         );
+
+        if (res.Error != null) throw res.Error;
+        return res;
     }
 
-    public Task<IApiResponse<ApiResult_Location>> Locations(LocationRequest request)
+    public async Task<IApiResponse<ApiResult_Location>> Locations(LocationRequest request)
     {
-        return _refitClient.Locations(
+        var res = await _refitClient.Locations(
             request.SellerNumber,
             request.Accept,
             request.Credentials.WebServiceKey,
             request.Credentials.Apikey,
             request.Credentials.Username
         );
+
+        if (res.Error != null) throw res.Error;
+        return res;
     }
 
-    public Task<IApiResponse<ApiResult_Supplier>> Suppliers(SupplierRequest request)
+    public async Task<IApiResponse<ApiResult_Supplier>> Suppliers(SupplierRequest request)
     {
-        return _refitClient.Suppliers(
+        var res = await _refitClient.Suppliers(
             request.Accept,
             request.Credentials.WebServiceKey,
             request.Credentials.Apikey,
             request.Credentials.Username
         );
+
+        if (res.Error != null) throw res.Error;
+        return res;
     }
 
 
-    private Task<IApiResponse<ApiResult_AllocationV2>> GetAllocations(AllocationRequest request)
+    private async Task<IApiResponse<ApiResult_AllocationV2>> GetAllocations(AllocationRequest request)
     {
-        return _refitClient.Allocations(
+        var res = await _refitClient.Allocations(
             request.CustSupplierId,
             request.CustTerminalId,
             request.CustProductId,
@@ -149,6 +166,9 @@ public class AllocationTrackerService : IAllocationTrackerService
             request.Credentials.Apikey,
             request.Credentials.Username
         );
+
+        if (res.Error != null) throw res.Error;
+        return res;
     }
 
     #region Allocations
@@ -260,7 +280,7 @@ public class AllocationTrackerService : IAllocationTrackerService
                 {
                     AlternateId = null,
                     Country = x.Country,
-                    Id = x.Id,
+                    Id = int.TryParse(x.Id, out var id) ? id : 0,
                     MappedName = x.MappedName,
                     Name = x.Name,
                     Owner = x.Owner,

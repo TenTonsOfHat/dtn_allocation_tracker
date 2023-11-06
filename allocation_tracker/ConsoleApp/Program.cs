@@ -7,53 +7,44 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 using Polly;
 using Polly.Extensions.Http;
 using Refit;
 
-// Globals
-// ReSharper disable InconsistentNaming
-var WebServiceKey = new Option<string>("--WebServiceKey", "The WebServiceKey");
-var Apikey = new Option<string>("--Apikey", "The Apikey");
-var Username = new Option<string>("--Username", "The Service username");
-var SERVICES = GetDI(args);
-AllocationTrackerCredentials CREDENTIALS = null;
 
-
-var rootCommand = new RootCommand("query allocations from the AllocationTracker web service");
-rootCommand.AddOption(WebServiceKey);
-rootCommand.AddOption(Apikey);
-rootCommand.AddOption(Username);
-
-rootCommand.SetHandler(async (username, apiKey, serviceKey) =>
-    {
-        CREDENTIALS = new AllocationTrackerCredentials()
-        {
-            WebServiceKey = serviceKey,
-            Apikey = apiKey,
-            Username = username
-        };
-        await QueryAndWrite();
-    },
-    Username, Apikey, WebServiceKey);
-
-return await rootCommand.InvokeAsync(args);
-
-
-
-async Task<int> QueryAndWrite()
+async Task<int> RunQuery(string username, string apiKey, string serviceKey, IServiceProvider serviceProvider)
 {
-    var result = await ExecuteSupplierQuery();
-    File.WriteAllText($"{CREDENTIALS.Username}_allocations.json", JsonConvert.SerializeObject(result.Content, Formatting.Indented));
+    var credentials = new AllocationTrackerCredentials()
+    {
+        WebServiceKey = serviceKey,
+        Apikey = apiKey,
+        Username = username
+    };
+
+    var sw = Stopwatch.StartNew();
+
+    var service = serviceProvider.GetRequiredService<IAllocationTrackerService>();
+    var allocResult = await service.Allocations(new AllocationRequest()
+    {
+        Credentials = credentials
+    });
+
+    Console.Out.WriteLine("Elapsed: " + sw.Elapsed);
+    
+    File.WriteAllText($"{credentials.Username}_allocations.json", JsonConvert.SerializeObject(allocResult.Content, Formatting.Indented));
     return 1;
 }
 
-
-IServiceProvider GetDI(string[] strings)
+IServiceProvider ConfigureServices(string[] strings)
 {
     var builder = Host.CreateApplicationBuilder(strings);
     builder.Services
-        .AddRefitClient<IAllocationTrackerRefitClient>()
+        .AddRefitClient<IAllocationTrackerRefitClient>(new RefitSettings(
+            new NewtonsoftJsonContentSerializer(
+                new JsonSerializerSettings { ContractResolver = new CamelCasePropertyNamesContractResolver() }
+            )
+        ))
         .ConfigureHttpClient(c => c.BaseAddress = new Uri("https://api.dtn.com/fuelsuite/"))
         .AddPolicyHandler(_ =>
         {
@@ -71,23 +62,37 @@ IServiceProvider GetDI(string[] strings)
     builder.Services.AddTransient<IAllocationTrackerService, AllocationTrackerService>();
 
     builder.Logging.ClearProviders();
-    var host1 = builder.Build();
-    return host1.Services;
+    return builder.Build().Services;
 }
 
 
-async Task<IApiResponse<ApiResult_AllocationV2>> ExecuteSupplierQuery()
+async Task<int> InvokeAsync(string[] cliArgs)
 {
-    var sw = Stopwatch.StartNew();
-   
-    var service = SERVICES.GetRequiredService<IAllocationTrackerService>();
-    var result = await service.Allocations(new AllocationRequest()
-    {
-        Credentials = CREDENTIALS
-    });
+    var webServiceKeyParam = new Option<string>("--WebServiceKey", "The WebServiceKey");
+    var apikeyParam = new Option<string>("--Apikey", "The Apikey");
+    var userParam = new Option<string>("--Username", "The Service username");
+    var serviceProvider = ConfigureServices(cliArgs);
 
-    Console.Out.WriteLine("Elapsed: " + sw.Elapsed);
 
-    return result;
+    var rootCommand = new RootCommand("query allocations from the AllocationTracker web service");
+    rootCommand.AddOption(webServiceKeyParam);
+    rootCommand.AddOption(apikeyParam);
+    rootCommand.AddOption(userParam);
+
+    int? result = null;
+    
+    rootCommand.SetHandler(
+        async (username, apiKey, serviceKey) => { result = await RunQuery(username, apiKey, serviceKey, serviceProvider); },
+        userParam,
+        apikeyParam,
+        webServiceKeyParam
+    );
+
+    await rootCommand.InvokeAsync(cliArgs);
+
+    return result.GetValueOrDefault();
 }
 
+// Globals
+// ReSharper disable InconsistentNaming
+return await InvokeAsync(args);

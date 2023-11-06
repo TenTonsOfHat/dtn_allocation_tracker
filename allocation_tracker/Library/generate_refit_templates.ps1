@@ -2,4 +2,3 @@ $url = 'https://app.swaggerhub.com/apiproxy/registry/DTN-FuelSuite/allocation-tr
 $output = Join-Path $PSScriptRoot Swagger.API.RefitClient.cs
 refitter $url -o $output -n Gravitate.API.Client --use-api-response --no-auto-generated-header
 
-(Get-Content -path $output -Raw) -replace ' Task ', ' Task<IApiResponse<string>> '   | Set-Content -Path $output

@@ -6,8 +6,9 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="EasyCaching.InMemory" Version="1.9.2" />
-        <PackageReference Include="Refit" Version="7.0.0" />
+        <PackageReference Include="EasyCaching.InMemory" Version="1.9.2"/>
+        <PackageReference Include="Refit" Version="7.0.0"/>
+        <PackageReference Include="Refit.Newtonsoft.Json" Version="7.0.0"/>
     </ItemGroup>
 
 </Project>
